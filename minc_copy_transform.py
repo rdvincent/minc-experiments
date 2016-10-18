@@ -13,9 +13,7 @@ transform information.'''
 # This script requires Python 3.X
 # MINC commands used: mincreshape, minc_modify_header, mincinfo.
 #
-import subprocess
-import sys
-import math
+import subprocess, sys, math, tempfile, os
 
 def usage(argv):
     print(usage_str.format(argv[0]))
@@ -76,12 +74,18 @@ for dimname in xfm_names:
                               dimname + ':direction_cosines', xfm_file])
         xfm_cosines[dimname] = list(map(float, output.split()))
 
+
+# Create a tempfile for our intermediate step.
+handle, temp_file = tempfile.mkstemp()
+os.close(handle)
+
 # Now create the new output file by reshaping the data file according to
 # the transform file:
 
-run_command(['mincreshape', '-dimorder', ','.join(xfm_names)] +
-             get_directions(xfm_dirs) + [data_file, output_file])
+run_command(['mincreshape', '-clobber', '-dimorder', ','.join(xfm_names)] +
+             [data_file, temp_file])
 
+run_command(['mincreshape'] + get_directions(xfm_dirs) + [temp_file, output_file])
 
 for dimname in xfm_names:
     run_command(['minc_modify_header', '-dinsert', 
@@ -93,3 +97,5 @@ for dimname in xfm_names:
         run_command(['minc_modify_header', '-dinsert', 
                      dimname + ':direction_cosines=' + 
                      ','.join(map(str, xfm_cosines[dimname])), output_file])
+
+os.remove(temp_file)
